@@ -7,8 +7,7 @@ __pycache__/
 *.pyc
 
 OCR/model_training/trocr-im2latex-checkpoints/
-OCR/model_training/trocr-im2latex-final/
-OCR/model_training/trocr-im2latex-int8/
+OCR/model_training/trocr-im2latex-final/model.safetensors
 # C extensions
 *.so
 
