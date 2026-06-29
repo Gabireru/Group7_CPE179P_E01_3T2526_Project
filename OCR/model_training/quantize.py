@@ -103,32 +103,18 @@ def main():
 # ---------------------------------------------------------------------------
 
 def load_quantized_model(quantized_dir: str | Path):
-    """
-    Load the int8 quantized model for inference.
-
-    Usage in other scripts:
-        from quantize import load_quantized_model
-        from transformers import TrOCRProcessor
-
-        model = load_quantized_model("path/to/trocr-im2latex-int8")
-        processor = TrOCRProcessor.from_pretrained("path/to/trocr-im2latex-int8")
-    """
     from torchao.quantization import quantize_, Int8WeightOnlyConfig
+    from transformers import VisionEncoderDecoderConfig
 
     quantized_dir = Path(quantized_dir)
 
-    # Step 1: reconstruct the architecture in fp32
-    model = VisionEncoderDecoderModel.from_pretrained(
-        str(quantized_dir),
-        torch_dtype=torch.float32,
-    )
+    config = VisionEncoderDecoderConfig.from_pretrained(str(quantized_dir))
+    model = VisionEncoderDecoderModel(config)
     model.eval()
     model = model.cpu()
 
-    # Step 2: re-apply the same quantization structure so layer types match
     quantize_(model, Int8WeightOnlyConfig(version=2))
 
-    # Step 3: load the int8 weights into those layers
     state_dict = torch.load(
         quantized_dir / "model_int8.pt",
         map_location="cpu",
