@@ -1,3 +1,5 @@
+#data_collator.py
+
 from transformers import TrOCRProcessor
 import numpy as np
 import torch
