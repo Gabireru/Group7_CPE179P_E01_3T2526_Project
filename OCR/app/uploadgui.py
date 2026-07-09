@@ -45,6 +45,7 @@ def render_latex_to_base64(latex_str: str, fontsize: int = 20) -> str | None:
 
     try:
         # Wrap in $...$ for matplotlib math mode
+        print(repr(latex_str))
         display_str = f"${latex_str}$"
 
         fig = plt.figure(figsize=(8, 1.5))
@@ -57,7 +58,6 @@ def render_latex_to_base64(latex_str: str, fontsize: int = 20) -> str | None:
             ha="center",
             va="center",
             color="white",
-            usetex=False,       # use matplotlib's own math parser, not system LaTeX
         )
 
         buf = io.BytesIO()
@@ -72,9 +72,11 @@ def render_latex_to_base64(latex_str: str, fontsize: int = 20) -> str | None:
         buf.seek(0)
         return base64.b64encode(buf.read()).decode()
 
-    except Exception:
-        plt.close("all")
-        return None
+    except Exception as e:
+        print("========== LATEX ==========")
+        print(repr(display_str))
+        print("===========================")
+        print(e)
 
 
 # ---------------------------------------------------------------------------
@@ -203,8 +205,7 @@ def get_upload_layout(page: ft.Page, navigate_to, model_runner=None):
             thumb.thumbnail((480, 300))
             buf = io.BytesIO()
             thumb.save(buf, format="PNG")
-            preview_image.src = None
-            preview_image.src_base64 = base64.b64encode(buf.getvalue()).decode()
+            preview_image.src = picked.path
 
             status_text.value = "Image loaded. Press SCAN."
             scan_btn.disabled = False
@@ -254,21 +255,6 @@ def get_upload_layout(page: ft.Page, navigate_to, model_runner=None):
             copy_btn.disabled = False
             status_text.value = "Done."
 
-            # Attempt to render the LaTeX as a math image
-            b64 = render_latex_to_base64(latex)
-            if b64:
-                rendered_image.src_base64 = b64
-                rendered_image.src = None
-                rendered_image.visible = True
-                render_error.visible = False
-            else:
-                rendered_image.visible = False
-                render_error.value = (
-                    "Could not render as math — formula may contain unsupported LaTeX commands. "
-                    "The raw string above is still correct."
-                )
-                render_error.visible = True
-
         except Exception as exc:
             result_label.value = "Error:"
             result_text.value = str(exc)
@@ -301,10 +287,10 @@ def get_upload_layout(page: ft.Page, navigate_to, model_runner=None):
 
     # ── Copy ───────────────────────────────────────────────────────────────
 
-    def on_copy(e):
+    async def on_copy(e):
         latex = page.session.store.get("last_latex")
         if latex:
-            page.set_clipboard(latex)
+            await ft.Clipboard().set(latex)
             snack = ft.SnackBar(
                 content=ft.Text("LaTeX copied to clipboard!", color=ft.Colors.WHITE),
                 bgcolor="#1a2a6c",
@@ -355,7 +341,6 @@ def get_upload_layout(page: ft.Page, navigate_to, model_runner=None):
                     spacing=6,
                 ),
                 alignment=ft.Alignment.CENTER,
-                expand=True,
                 bgcolor=bg_color,
                 padding=16,
             ),
@@ -367,8 +352,6 @@ def get_upload_layout(page: ft.Page, navigate_to, model_runner=None):
                         status_text,
                         result_label,
                         result_text,
-                        rendered_image,
-                        render_error,
                     ],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     spacing=4,

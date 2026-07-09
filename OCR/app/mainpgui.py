@@ -14,10 +14,10 @@ def get_main_layout(page: ft.Page, navigate_to):
         on_click=lambda _: navigate_to("/upload"),   # was /camera
     )
 
-    def on_copy(e):
+    async def on_copy(e):
         latex = page.session.store.get("last_latex")
         if latex:
-            page.set_clipboard(latex)
+            await ft.Clipboard().set(latex)
             snack = ft.SnackBar(
                 content=ft.Text("LaTeX copied to clipboard!", color=ft.Colors.WHITE),
                 bgcolor="#1a2a6c",
