@@ -29,7 +29,6 @@ def get_file_size_mb(path: Path) -> float:
 
 def main():
     # Quantization runs on CPU — torchao's weight-only int8 targets CPU
-    # inference (which is what the Pi will use), not CUDA.
     print("Device: CPU (torchao weight-only int8 targets CPU inference)")
 
     # --- Check torchao is installed ---
@@ -60,9 +59,6 @@ def main():
     original_size_mb = get_file_size_mb(MODEL_DIR / "model.safetensors")
     print(f"Original model size on disk: {original_size_mb:.1f} MB")
 
-    # --- Quantize ---
-    # Int8WeightOnlyConfig: converts all nn.Linear weight tensors to int8.
-    # Activations stay in fp32 at runtime — no overhead, just smaller weights.
     print("\nApplying torchao int8 weight-only quantization...")
     quantize_(model, Int8WeightOnlyConfig(version=2))
     print("Quantization complete.")

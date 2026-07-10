@@ -14,24 +14,26 @@ def get_main_layout(page: ft.Page, navigate_to):
         on_click=lambda _: navigate_to("/upload"),   # was /camera
     )
 
+    clipboard = ft.Clipboard()
+    page.services.append(clipboard)
+
+    def _show_snack(message: str, color: str):
+        snack = ft.SnackBar(
+            content=ft.Text(message, color=ft.Colors.WHITE),
+            bgcolor=color,
+            duration=2000,
+            persist=False,
+            on_dismiss=lambda _: page.pop_dialog(),
+        )
+        page.show_dialog(snack)
+
     async def on_copy(e):
         latex = page.session.store.get("last_latex")
         if latex:
-            await ft.Clipboard().set(latex)
-            snack = ft.SnackBar(
-                content=ft.Text("LaTeX copied to clipboard!", color=ft.Colors.WHITE),
-                bgcolor="#1a2a6c",
-                duration=2000,
-            )
+            await clipboard.set(latex)
+            _show_snack("LaTeX copied to clipboard!", "#1a2a6c")
         else:
-            snack = ft.SnackBar(
-                content=ft.Text("No formula scanned yet — use SCAN first.", color=ft.Colors.WHITE),
-                bgcolor="#6c1a1a",
-                duration=2000,
-            )
-        page.overlay.append(snack)
-        snack.open = True
-        page.update()
+            _show_snack("No formula scanned yet — use SCAN first.", "#6c1a1a")
 
     copy_btn = ft.Container(
         content=ft.Text("COPY", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD, size=13),

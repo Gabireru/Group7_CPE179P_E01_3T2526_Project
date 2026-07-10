@@ -44,7 +44,7 @@ USE_FP16 = True
 
 
 # ---------------------------------------------------------------------------
-# CER metric
+# CER (Character Error Rate) metric
 # ---------------------------------------------------------------------------
 
 def build_compute_metrics_fn(processor: TrOCRProcessor):
@@ -133,7 +133,7 @@ def main():
         save_strategy="steps",
         save_steps=SAVE_STEPS,
         logging_steps=LOGGING_STEPS,
-        # --- Disk safety: never let checkpoints accumulate unbounded ---
+        # --- Disk safety: never let checkpoints accumulate unbounded or excess storage will be used ---
         save_total_limit=2,
         load_best_model_at_end=True,
         metric_for_best_model="cer",

@@ -47,8 +47,6 @@ class TrOCRCollator:
         images = [row["image"] for row in batch_rows]
         formulas = [row["formula"] for row in batch_rows]
 
-        # Apply the same conditional preprocessing used during inspection
-        # (skips blur/binarize for already-clean rendered images).
         cleaned_images = [full_preprocess(img) for img in images]
 
         pixel_values = self.processor(

@@ -1,11 +1,9 @@
-# CPE179P_E01_3T2526_Project
-
 # CPE179P_E01_3T2526 — Group 7: Mathematical Equation OCR Pipeline
 
-A fine-tuned OCR pipeline that reads images of mathematical equations and outputs LaTeX strings. Built on Microsoft's TrOCR model, fine-tuned on the im2latex-100k dataset, and quantized to int8 for deployment on resource-constrained devices such as the Raspberry Pi.
+A fine-tuned OCR pipeline that reads images of mathematical equations and outputs LaTeX strings, targeting multiple linear regression equation recognition. Built on Microsoft's TrOCR model, fine-tuned on the im2latex-100k dataset, quantized to int8, and deployed with a Flet-based desktop UI on Raspberry Pi.
 
 **Course:** CPE179P — Section E01, 3T2526  
-**Group:** 7  
+**Group:** 7
 
 ---
 
@@ -16,24 +14,25 @@ A fine-tuned OCR pipeline that reads images of mathematical equations and output
 3. [Requirements](#requirements)
 4. [Setup](#setup)
 5. [Running the Pipeline](#running-the-pipeline)
-6. [Script Reference](#script-reference)
-7. [Notes for the Grader](#notes-for-the-grader)
+6. [Running the UI](#running-the-ui)
+7. [Script Reference](#script-reference)
+8. [Notes for the Grader](#notes-for-the-grader)
 
 ---
 
 ## Project Overview
 
-This pipeline takes an image containing a mathematical equation and outputs the corresponding LaTeX string, to be used later as a model for multiple linear reegression equations. For example:
+This pipeline takes an image containing a mathematical equation and outputs the corresponding LaTeX string. For example:
 
 **Input:** An image of `ŷ = β₀ + β₁x₁ + β₂x₂`  
 **Output:** `\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2`
 
 ### How It Works
 
-1. **Preprocessing** — Images are checked for quality. Already-clean rendered equations (e.g. from textbooks or PDFs) pass through untouched. Photographed or scanned images with noise and skew get cleaned up automatically.
+1. **Preprocessing** — Images are checked for quality. Already-clean rendered equations (e.g. from textbooks or PDFs) pass through untouched. Photographed or scanned images with noise and skew get deskewed, denoised, and binarized automatically.
 2. **Training** — Microsoft's `trocr-base-printed` model is fine-tuned on the `im2latex-100k` dataset (~55,000 LaTeX equation image-formula pairs from arXiv).
 3. **Quantization** — The fine-tuned model (~1.3 GB) is compressed to int8 (~522 MB) using `torchao` for deployment on the Raspberry Pi.
-4. **Inference** — The quantized model reads an equation image and outputs a LaTeX string to the terminal.
+4. **UI** — A Flet-based desktop app lets the user pick an equation image, run the model, see the predicted LaTeX, and copy it to clipboard.
 
 ---
 
@@ -42,219 +41,192 @@ This pipeline takes an image containing a mathematical equation and outputs the 
 ```
 Group7_CPE179P_E01_3T2526/
 ├── OCR/
-│   └── model_training/
-│       ├── preprocess.py               # Image loading and cleanup
-│       ├── data_collator.py            # On-the-fly tensor conversion
-│       ├── train.py                    # Fine-tuning script
-│       ├── quantize.py                 # int8 quantization + load helper
-│       ├── inspect_predictionsint8.py  # Prediction inspection tool
-│       ├── verification.py             # CUDA/GPU verification
-│       ├── trocr-im2latex-int8/        # Quantized model (tracked via Git LFS)
-│       │   ├── model_int8.pt           # int8 weights (~522 MB, via LFS)
-│       │   ├── config.json
-│       │   ├── generation_config.json
-│       │   ├── processor_config.json
-│       │   ├── tokenizer.json
-│       │   └── tokenizer_config.json
-│       └── trocr-im2latex-final/       # Full fp32 model (NOT in git, too large)
-│           ├── model.safetensors       # ~1.3 GB — must be generated locally
-│           └── ...
+│   ├── model_training/
+│   │   ├── preprocess.py               # Conditional image cleanup
+│   │   ├── data_collator.py            # On-the-fly tensor conversion (not run directly)
+│   │   ├── train.py                    # Fine-tuning script
+│   │   ├── quantize.py                 # int8 quantization + load helper
+│   │   ├── inspect_predictionsint8.py  # Prediction inspection tool
+│   │   ├── verification.py             # CUDA/GPU verification
+│   │   ├── trocr-im2latex-int8/        # Quantized model (tracked via Git LFS)
+│   │   │   ├── model_int8.pt           # int8 weights (~522 MB, via LFS)
+│   │   │   ├── config.json
+│   │   │   ├── generation_config.json
+│   │   │   ├── processor_config.json
+│   │   │   ├── tokenizer.json
+│   │   │   └── tokenizer_config.json
+│   │   └── trocr-im2latex-final/       # Full fp32 model (NOT in git — too large)
+│   │       └── model.safetensors       # ~1.3 GB — generated locally by train.py
+│   └── UI/
+│       ├── mainui.py                   # App entry point
+│       ├── loginui.py                  # Login/cover screen
+│       ├── mainpgui.py                 # Main menu screen
+│       ├── uploadgui.py                # File upload + inference screen
+│       ├── model_runner.py             # Model loading + inference wrapper
+│       └── UI images/                  # Background images for the UI
 ├── .gitattributes                      # Git LFS tracking rules
 ├── .gitignore
 └── README.md
 ```
 
-> **Note:** `trocr-im2latex-final/model.safetensors` is excluded from the repository (too large even for LFS). To use the full fp32 model, run `train.py` locally to generate it although it would tkae quite a while for it to do so depending on your hardware (A computer with an RTX 5070Ti training the model even though its just a 3k subset of the 55k took 1 hour and 27 minutes.). The quantized int8 model in `trocr-im2latex-int8/` is sufficient for inference and is included via Git LFS.
+> **Note:** `trocr-im2latex-final/model.safetensors` is excluded from the repository (too large even for LFS). The quantized int8 model in `trocr-im2latex-int8/` is self-contained and sufficient for inference — no fp32 model needed at runtime. To regenerate the fp32 model, run `train.py` (expect ~1.5 hours on an RTX 5070 Ti for the 3k subset).
 
 ---
 
 ## Requirements
 
 ### Hardware
-- A GPU with CUDA support is strongly recommended for training (tested on NVIDIA RTX 5070 Ti with CUDA 13.2)
-- CPU-only is supported but training will be extremely slow
-- For inference only (no training): any machine including Raspberry Pi 5
+- **Training:** A GPU with CUDA support strongly recommended (tested on NVIDIA RTX 5070 Ti, CUDA 13.2). CPU-only works but is extremely slow.
+- **Inference / UI:** Any machine including Raspberry Pi 5 (CPU-only, no GPU needed).
 
 ### Software
 - Python 3.12
 - [uv](https://docs.astral.sh/uv/) — Python package and environment manager
 - Git with [Git LFS](https://git-lfs.github.com/) — required to pull the quantized model file
+- Flet 0.85.3 — UI framework
 
 ---
 
 ## Setup
 
-### Step 1 — Install Git LFS and pull the model
+### Step 1 — Install Git LFS and clone
 
-Git LFS is required to download `model_int8.pt` when cloning. If you skip this, the model file will appear as a small text pointer instead of the actual weights.
+Git LFS is required to download `model_int8.pt`. Without it, the file appears as a small text pointer instead of the real weights.
 
 ```bash
-# Install Git LFS (do this once per machine)
+# Install Git LFS (once per machine)
 git lfs install
 
-# Clone the repo normally — LFS files download automatically
+# Clone — LFS files download automatically
 git clone https://github.com/Gabireru/Group7_CPE179P_E01_3T2526_Project.git
 cd Group7_CPE179P_E01_3T2526_Project
 
-# If you already cloned without LFS, pull the LFS files manually
+# If already cloned without LFS, pull manually
 git lfs pull
 ```
 
 ### Step 2 — Install uv
-
-`uv` is a fast Python package manager. Install it with:
 
 **Windows (PowerShell):**
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-**macOS / Linux:**
+**Linux / Raspberry Pi:**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### Step 3 — Create the virtual environment and install dependencies
-
-Navigate to the project root and run:
+### Step 3 — Install dependencies
 
 ```bash
-# Pin Python version (do this once)
 uv python pin 3.12
-
-# Install all dependencies into a virtual environment
-uv add torch torchvision --index-url https://download.pytorch.org/whl/cu132
-uv add transformers datasets evaluate jiwer pillow opencv-python-headless accelerate numpy torchao
 ```
 
-> **Note on the CUDA index URL:** `cu132` targets CUDA 13.2 with RTX 5070 Ti (Blackwell, sm_120) support. If you are on a different GPU or CUDA version, adjust accordingly. For CPU-only, omit the `--index-url` flag entirely.
+**For training (Windows with CUDA 13.2 / RTX 5070 Ti):**
+```bash
+uv add torch torchvision --index-url https://download.pytorch.org/whl/cu132
+uv add transformers datasets evaluate jiwer pillow opencv-python-headless accelerate numpy torchao flet==0.85.3
+```
 
-### Step 4 — Verify your GPU (optional but recommended)
+**For inference/UI only (Raspberry Pi or CPU-only machine):**
+```bash
+uv add torch torchvision --index-url https://download.pytorch.org/whl/cpu
+uv add transformers pillow opencv-python-headless numpy torchao flet==0.85.3
+```
+
+> Pinning `flet==0.85.3` is important — the UI was written and tested against this exact version. Newer Flet versions have breaking API changes.
+
+### Step 4 — Verify GPU (training machines only)
 
 ```bash
-uv run python verification.py
+uv run python OCR/model_training/verification.py
 ```
-
-Expected output includes `True` for `torch.cuda.is_available()` and your GPU name. If CUDA is not available, training will still run on CPU but will be very slow.
 
 ---
 
 ## Running the Pipeline
 
-> All scripts must be run from the `OCR/model_training/` directory, or with the full path as shown below. Scripts use `os.path.abspath(__file__)` to anchor all file paths to their own location, so they work correctly regardless of where you call them from.
+> Scripts use `os.path.abspath(__file__)` to anchor paths to their own location, so they work regardless of where you call them from.
 
 ### 1. Inspect the dataset (optional)
 
-Downloads the im2latex-100k dataset (~340 MB, cached after first run) and saves 8 before/after preprocessing sample images to `preprocessed_samples/` for visual inspection.
+Downloads im2latex-100k (~340 MB, cached after first run) and saves 8 before/after preprocessing samples to `preprocessed_samples/`.
 
 ```bash
 uv run python OCR/model_training/preprocess.py
 ```
 
-**Expected output:**
-```
-Loading dataset: yuntian-deng/im2latex-100k ...
-Splits found: ['train', 'test', 'val']
-  train: 55033 examples
-  test: 6810 examples
-  val: 6072 examples
-Saving 8 before/after samples from 'train' to preprocessed_samples/ ...
-Done.
-```
-
----
-
 ### 2. Train the model
 
-Fine-tunes `microsoft/trocr-base-printed` on the im2latex-100k dataset.
-
-**Before running**, open `train.py` and check the config section at the top:
+Open `train.py` and check the config at the top before running:
 
 ```python
-TRAIN_SUBSET_SIZE = 3000   # Use 3000 for a quick test run (~1.5 hrs on GPU)
-                           # Set to None to train on all 55,033 examples (many hours)
-EVAL_SUBSET_SIZE  = 100    # Validation subset size during training
-NUM_EPOCHS        = 3      # Number of full passes through the training data
-BATCH_SIZE        = 8      # Lower this if you get out-of-memory errors
+TRAIN_SUBSET_SIZE = 3000   # 3000 for a test run (~1.5 hrs on RTX 5070 Ti)
+                           # None for full 55,033 examples (many hours)
+EVAL_SUBSET_SIZE  = 100
+NUM_EPOCHS        = 3
+BATCH_SIZE        = 8      # Lower if you hit out-of-memory errors
 ```
-
-Then run:
 
 ```bash
 uv run python OCR/model_training/train.py
 ```
 
-**Expected output (first run downloads the base model ~1.3 GB):**
-```
-CUDA available — using GPU: NVIDIA GeForce RTX 5070 Ti Laptop GPU
-Loading dataset: yuntian-deng/im2latex-100k ...
-Loading processor + model: microsoft/trocr-base-printed ...
-Formula token length check (sample of 2000 from 'train'):
-  MAX_LABEL_LENGTH=256: 0 examples (0.00%) would be truncated
-Starting training...
-  Effective batch size: 16
-  Epochs: 3
-  Checkpoints kept: 2 (older ones auto-deleted)
-{'loss': '9.45', ...}
-...
-Final metrics: {'eval_cer': 0.304, ...}
-```
+First run downloads `microsoft/trocr-base-printed` (~1.3 GB). Output: `trocr-im2latex-final/` and up to 2 checkpoints in `trocr-im2latex-checkpoints/`.
 
-**Output files:**
-- `trocr-im2latex-final/` — the trained model in full fp32 precision
-- `trocr-im2latex-checkpoints/` — up to 2 intermediate checkpoints (auto-managed)
-
-> **Storage note:** Training itself writes nothing large to disk during the run. The final model (`model.safetensors`) is ~1.3 GB. Checkpoints are capped at 2 copies. The Hugging Face dataset cache (~340 MB) lives in `~/.cache/huggingface/hub/` — do NOT delete this between runs.
-
----
+> **Storage note:** The HF dataset cache (~340 MB) lives in `~/.cache/huggingface/hub/`. Do NOT delete this between runs. Do NOT run `dataset.map()` with large tensor outputs — `data_collator.py` converts tensors on-the-fly to avoid the 100GB+ disk usage this would cause.
 
 ### 3. Quantize the model
 
-Compresses the trained model from fp32 (~1.3 GB) to int8 (~522 MB) using `torchao`. Required before running inference on the Raspberry Pi.
+Compresses the fp32 model (~1.3 GB) to int8 (~522 MB) for Pi deployment.
 
 ```bash
 uv run python OCR/model_training/quantize.py
 ```
 
-**Expected output:**
-```
-Device: CPU (torchao weight-only int8 targets CPU inference)
-Loading fine-tuned model from: .../trocr-im2latex-final
-Original model size on disk: 1311.4 MB
-Applying torchao int8 weight-only quantization...
-Quantization complete.
-Forward pass OK. Output token ids shape: torch.Size([1, 20])
-Quantized weights saved: .../trocr-im2latex-int8/model_int8.pt
---- Size comparison ---
-  Original (fp32 safetensors): 1311.4 MB
-  Quantized (int8 .pt):         521.9 MB
-  Reduction:                    60.2%
-```
+Output: `trocr-im2latex-int8/` — self-contained, no internet or fp32 model needed at runtime.
 
-**Output files:**
-- `trocr-im2latex-int8/` — self-contained quantized model folder, ready for Pi deployment
+### 4. Inspect predictions (optional)
 
-> **Prerequisite:** `trocr-im2latex-final/` must exist (i.e. `train.py` must have completed successfully).
-
----
-
-### 4. Inspect predictions
-
-Runs the quantized model on 10 real validation examples and prints predicted LaTeX next to ground truth.
+Runs the quantized model on 10 real val examples and prints predictions vs ground truth.
 
 ```bash
 uv run python OCR/model_training/inspect_predictionsint8.py
 ```
 
-**Expected output:**
+---
+
+## Running the UI
+
+The UI is a Flet desktop app. Run it from the `OCR/UI/` directory:
+
+```bash
+cd OCR/UI
+uv run python mainui.py
 ```
-Using device: cpu (int8 quantized model runs on CPU)
-Loading quantized int8 model + processor from: .../trocr-im2latex-int8
-Running inference on 10 real val examples...
-[0]
-  GROUND TRUTH: E ( v ) = \frac { d } { d t } E ( q ) ...
-  PREDICTION:   E ( v ) = \frac { d } { d t } E ( q ) ...
+
+### UI Flow
+
 ```
+Cover screen → [START] → Main menu → [SCAN] → Upload screen
+                                   → [COPY]    Pick image → [SCAN] → LaTeX output → [COPY LaTeX]
+                                                                                   → [BACK]
+```
+
+**Upload screen walkthrough:**
+1. Press **PICK IMAGE** — opens a file picker (PNG, JPG, BMP, TIFF, WebP supported)
+2. The preview shows the preprocessed image (what the model actually sees)
+3. Press **SCAN** — model runs in background, status updates while waiting
+4. Predicted LaTeX appears in the result area (selectable text)
+5. Press **COPY LaTeX** to copy to clipboard, or **BACK** to return to the main menu
+6. The **COPY** button on the main menu also copies the last scanned result
+
+### Notes for Pi deployment
+- The model loads automatically in the background when the app starts
+- Inference runs on CPU — expect 10–30 seconds per image on Pi 5
+- The app requires `trocr-im2latex-int8/` to be present alongside `model_training/`
+- No internet connection needed at runtime
 
 ---
 
@@ -264,10 +236,11 @@ Running inference on 10 real val examples...
 |--------|---------|----------|
 | `verification.py` | Check CUDA/GPU availability | — |
 | `preprocess.py` | Download dataset, inspect preprocessing | Internet (first run) |
-| `data_collator.py` | Tensor conversion module (not run directly!) | — |
-| `train.py` | Fine-tune TrOCR on im2latex-100k | `preprocess.py` run first |
+| `data_collator.py` | Tensor conversion module (imported by train.py, not run directly) | — |
+| `train.py` | Fine-tune TrOCR on im2latex-100k | GPU recommended |
 | `quantize.py` | Compress model to int8 | `train.py` completed |
-| `inspect_predictionsint8.py` | Inspect model predictions | `quantize.py` completed |
+| `inspect_predictionsint8.py` | Inspect model predictions vs ground truth | `quantize.py` completed |
+| `mainui.py` | Launch the UI app | `quantize.py` completed |
 
 ---
 
@@ -275,8 +248,9 @@ Running inference on 10 real val examples...
 
 - **Dataset:** `yuntian-deng/im2latex-100k` — 55,033 training / 6,072 val / 6,810 test LaTeX equation image-formula pairs from arXiv physics papers.
 - **Base model:** `microsoft/trocr-base-printed` (334M parameters, BEiT encoder + RoBERTa decoder).
-- **Training:** Fine-tuned on a 3,000-example subset for 3 epochs due to hardware and time constraints. Final validation CER: **0.304** (Character Error Rate — lower is better; 0.0 = perfect).
-- **Quantization:** int8 weight-only quantization via `torchao`, reducing model size by ~60% with minor accuracy tradeoff, targeting Raspberry Pi CPU deployment.
-- **Preprocessing:** Conditional image cleanup — clean rendered equations pass through untouched (preserving anti-aliased edges), while noisy/photographed images receive deskewing, median blur, and Otsu binarization.
-- **No data is pre-saved to disk** during training — tensor conversion happens on-the-fly per batch via `TrOCRCollator`, keeping storage impact minimal beyond the original dataset cache.
-- The UI layer is planned for a future phase and is not included in this submission.
+- **Training:** Fine-tuned on a 3,000-example subset for 3 epochs due to hardware and time constraints (1h 27min on RTX 5070 Ti Laptop). Final validation CER: **0.304** (Character Error Rate — lower is better; 0.0 = perfect).
+- **Quantization:** int8 weight-only quantization via `torchao`, reducing model size by ~60% with minor accuracy tradeoff, targeting Raspberry Pi 5 CPU inference. The quantized folder is fully self-contained — no fp32 weights or internet needed at inference time.
+- **Preprocessing:** Conditional image cleanup — clean rendered equations pass through untouched (preserving anti-aliased edges), while noisy/photographed images receive deskewing, median blur, and Otsu binarization. The UI shows the preprocessed image in the preview so the user can see what the model actually receives.
+- **Storage safety:** Tensor conversion happens on-the-fly per batch via `TrOCRCollator` — no pre-computed tensor dataset is ever saved to disk (this would cost 100+ GB). Checkpoints are capped at 2 copies via `save_total_limit=2`.
+- **UI:** Built with Flet 0.85.3, cross-compatible with Windows and Raspberry Pi. No camera used — file upload only. LaTeX rendering via matplotlib was omitted for Pi compatibility (matplotlib's math renderer is CPU-heavy and slow on Pi).
+- The large model files are managed via Git LFS (`model_int8.pt`, ~522 MB). The fp32 `model.safetensors` (~1.3 GB) is excluded from the repo entirely and must be generated locally via `train.py`.

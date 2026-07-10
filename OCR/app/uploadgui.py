@@ -1,13 +1,4 @@
 # uploadgui.py
-#
-# Replaces camgui.py. Instead of a live camera feed, the user picks an
-# image file from disk. The model runs and outputs:
-#   1. The raw LaTeX string (selectable, copyable)
-#   2. The LaTeX rendered as a math image via matplotlib
-#
-# Cross-compatible: Windows (laptop) and Raspberry Pi.
-# No camera, no browser, no internet required at runtime.
-
 import io
 import base64
 import threading
@@ -15,11 +6,9 @@ import threading
 import flet as ft
 from PIL import Image
 
-# matplotlib is already in the environment (used in preprocess testing).
-# We use it here purely to render LaTeX math to a PNG in memory.
 try:
     import matplotlib
-    matplotlib.use("Agg")           # non-interactive backend, safe on Pi
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
@@ -44,7 +33,6 @@ def render_latex_to_base64(latex_str: str, fontsize: int = 20) -> str | None:
         return None
 
     try:
-        # Wrap in $...$ for matplotlib math mode
         print(repr(latex_str))
         display_str = f"${latex_str}$"
 
@@ -124,7 +112,6 @@ def get_upload_layout(page: ft.Page, navigate_to, model_runner=None):
         text_align=ft.TextAlign.CENTER,
     )
 
-    # Raw LaTeX string — selectable so the user can copy manually too
     result_text = ft.Text(
         "",
         color=ft.Colors.WHITE,
@@ -135,9 +122,6 @@ def get_upload_layout(page: ft.Page, navigate_to, model_runner=None):
         overflow=ft.TextOverflow.ELLIPSIS,
     )
 
-    # Rendered math image (matplotlib output).
-    # src="" satisfies flet 0.85's required positional arg —
-    # it gets replaced with src_base64 after inference runs.
     rendered_image = ft.Image(
         src="",
         visible=False,
@@ -177,9 +161,6 @@ def get_upload_layout(page: ft.Page, navigate_to, model_runner=None):
 
     # ── File picker ────────────────────────────────────────────────────────
     # In Flet 0.85, FilePicker.pick_files() is async and returns files
-    # directly — no on_result callback needed. The button handler awaits
-    # pick_files() and processes the result inline.
-
     file_picker = ft.FilePicker()
     page.services.append(file_picker)
 
@@ -287,24 +268,32 @@ def get_upload_layout(page: ft.Page, navigate_to, model_runner=None):
 
     # ── Copy ───────────────────────────────────────────────────────────────
 
+    # Clipboard registered as a service so it has an active session
+    clipboard = ft.Clipboard()
+    page.services.append(clipboard)
+
+    def _show_snack(message: str, color: str):
+        """
+        Display a SnackBar and ensure it is removed from the dialog stack
+        after dismissal, preventing the black rectangle artifact that appears
+        when dialogs linger in the stack after their animation ends.
+        """
+        snack = ft.SnackBar(
+            content=ft.Text(message, color=ft.Colors.WHITE),
+            bgcolor=color,
+            duration=2000,
+            persist=False,
+            on_dismiss=lambda _: page.pop_dialog(),
+        )
+        page.show_dialog(snack)
+
     async def on_copy(e):
         latex = page.session.store.get("last_latex")
         if latex:
-            await ft.Clipboard().set(latex)
-            snack = ft.SnackBar(
-                content=ft.Text("LaTeX copied to clipboard!", color=ft.Colors.WHITE),
-                bgcolor="#1a2a6c",
-                duration=2000,
-            )
+            await clipboard.set(latex)
+            _show_snack("LaTeX copied to clipboard!", "#1a2a6c")
         else:
-            snack = ft.SnackBar(
-                content=ft.Text("No result yet — run SCAN first.", color=ft.Colors.WHITE),
-                bgcolor="#6c1a1a",
-                duration=2000,
-            )
-        page.overlay.append(snack)
-        snack.open = True
-        page.update()
+            _show_snack("No result yet — run SCAN first.", "#6c1a1a")
 
     copy_btn.on_click = on_copy
 
