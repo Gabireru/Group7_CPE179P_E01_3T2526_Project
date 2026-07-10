@@ -224,7 +224,7 @@ Cover screen → [START] → Main menu → [SCAN] → Upload screen
 
 ### Notes for Pi deployment
 - The model loads automatically in the background when the app starts
-- Inference runs on CPU — expect 10–30 seconds per image on Pi 5
+- Inference runs on CPU — expect 90–120 seconds per image on Pi 5
 - The app requires `trocr-im2latex-int8/` to be present alongside `model_training/`
 - No internet connection needed at runtime
 
