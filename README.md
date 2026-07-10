@@ -216,7 +216,7 @@ Cover screen → [START] → Main menu → [SCAN] → Upload screen
 
 **Upload screen walkthrough:**
 1. Press **PICK IMAGE** — opens a file picker (PNG, JPG, BMP, TIFF, WebP supported)
-2. The preview shows the preprocessed image (what the model actually sees)
+2. The preview shows the image
 3. Press **SCAN** — model runs in background, status updates while waiting
 4. Predicted LaTeX appears in the result area (selectable text)
 5. Press **COPY LaTeX** to copy to clipboard, or **BACK** to return to the main menu
@@ -250,7 +250,7 @@ Cover screen → [START] → Main menu → [SCAN] → Upload screen
 - **Base model:** `microsoft/trocr-base-printed` (334M parameters, BEiT encoder + RoBERTa decoder).
 - **Training:** Fine-tuned on a 3,000-example subset for 3 epochs due to hardware and time constraints (1h 27min on RTX 5070 Ti Laptop). Final validation CER: **0.304** (Character Error Rate — lower is better).
 - **Quantization:** int8 weight-only quantization via `torchao`, reducing model size by ~60% with minor accuracy tradeoff, targeting Raspberry Pi 5 CPU inference. The quantized folder is fully self-contained — no fp32 weights or internet needed at inference time.
-- **Preprocessing:** Conditional image cleanup — clean rendered equations pass through untouched (preserving anti-aliased edges), while noisy/photographed images receive deskewing, median blur, and Otsu binarization. The UI shows the preprocessed image in the preview so the user can see what the model actually receives.
+- **Preprocessing:** Conditional image cleanup — clean rendered equations pass through untouched (preserving anti-aliased edges), while noisy/photographed images receive deskewing, median blur, and Otsu binarization.
 - **Storage safety:** Tensor conversion happens on-the-fly per batch via `TrOCRCollator` — no pre-computed tensor dataset is ever saved to disk (this would cost 100+ GB). Checkpoints are capped at 2 copies via `save_total_limit=2`.
 - **UI:** Built with Flet 0.85.3, cross-compatible with Windows and Raspberry Pi. No camera used — file upload only. LaTeX rendering via matplotlib was omitted for Pi compatibility (matplotlib's math renderer is CPU-heavy and slow on Pi).
 - The large model files are managed via Git LFS (`model_int8.pt`, ~522 MB). The fp32 `model.safetensors` (~1.3 GB) is excluded from the repo entirely and must be generated locally via `train.py`.
