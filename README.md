@@ -16,7 +16,7 @@ A fine-tuned OCR pipeline that reads images of mathematical equations and output
 5. [Running the Pipeline](#running-the-pipeline)
 6. [Running the UI](#running-the-ui)
 7. [Script Reference](#script-reference)
-8. [Notes for the Grader](#notes-for-the-grader)
+8. [Additional Notes](#additional-notes)
 
 ---
 
