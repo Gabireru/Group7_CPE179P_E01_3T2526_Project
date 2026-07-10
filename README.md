@@ -125,14 +125,14 @@ uv python pin 3.12
 
 **For training (Windows with CUDA 13.2 / RTX 5070 Ti):**
 ```bash
-uv add torch torchvision --index-url https://download.pytorch.org/whl/cu132
-uv add transformers datasets evaluate jiwer pillow opencv-python-headless accelerate numpy torchao flet==0.85.3
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132
+uv pip install transformers datasets evaluate jiwer pillow opencv-python-headless accelerate numpy torchao flet==0.85.3
 ```
 
 **For inference/UI only (Raspberry Pi or CPU-only machine):**
 ```bash
-uv add torch torchvision --index-url https://download.pytorch.org/whl/cpu
-uv add transformers pillow opencv-python-headless numpy torchao flet==0.85.3
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+uv pip install  transformers datasets evaluate jiwer pillow opencv-python-headless accelerate numpy torchao flet==0.85.3
 ```
 
 > Pinning `flet==0.85.3` is important — the UI was written and tested against this exact version. Newer Flet versions have breaking API changes.
@@ -244,11 +244,11 @@ Cover screen → [START] → Main menu → [SCAN] → Upload screen
 
 ---
 
-## Notes for the Grader
+## Additional Notes
 
 - **Dataset:** `yuntian-deng/im2latex-100k` — 55,033 training / 6,072 val / 6,810 test LaTeX equation image-formula pairs from arXiv physics papers.
 - **Base model:** `microsoft/trocr-base-printed` (334M parameters, BEiT encoder + RoBERTa decoder).
-- **Training:** Fine-tuned on a 3,000-example subset for 3 epochs due to hardware and time constraints (1h 27min on RTX 5070 Ti Laptop). Final validation CER: **0.304** (Character Error Rate — lower is better; 0.0 = perfect).
+- **Training:** Fine-tuned on a 3,000-example subset for 3 epochs due to hardware and time constraints (1h 27min on RTX 5070 Ti Laptop). Final validation CER: **0.304** (Character Error Rate — lower is better).
 - **Quantization:** int8 weight-only quantization via `torchao`, reducing model size by ~60% with minor accuracy tradeoff, targeting Raspberry Pi 5 CPU inference. The quantized folder is fully self-contained — no fp32 weights or internet needed at inference time.
 - **Preprocessing:** Conditional image cleanup — clean rendered equations pass through untouched (preserving anti-aliased edges), while noisy/photographed images receive deskewing, median blur, and Otsu binarization. The UI shows the preprocessed image in the preview so the user can see what the model actually receives.
 - **Storage safety:** Tensor conversion happens on-the-fly per batch via `TrOCRCollator` — no pre-computed tensor dataset is ever saved to disk (this would cost 100+ GB). Checkpoints are capped at 2 copies via `save_total_limit=2`.
