@@ -27,6 +27,13 @@ This pipeline takes an image containing a mathematical equation and outputs the 
 **Input:** An image of `ŷ = β₀ + β₁x₁ + β₂x₂`  
 **Output:** `\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2`
 
+## Dataset Used
+The dataset can be accessed manually via:
+```
+https://huggingface.co/datasets/yuntian-deng/im2latex-100k
+```
+Though later on, the "datasets" library automatically downloads the dataset in your computer's cache when you run any scripts that has `load_dataset("yuntian-deng/im2latex-100k")`
+
 ### How It Works
 
 1. **Preprocessing** — Images are checked for quality. Already-clean rendered equations (e.g. from textbooks or PDFs) pass through untouched. Photographed or scanned images with noise and skew get deskewed, denoised, and binarized automatically.
